@@ -1,0 +1,17 @@
+{
+  "name": "wiki-connector-game",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "start": "node server/index.js",
+    "seed": "node server/seed.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.3"
+  }
+}
