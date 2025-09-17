@@ -9,6 +9,11 @@ const db = new sqlite3.Database(DB_PATH);
 
 const app = express();
 app.use(cors());
+
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+// Serve static files from client/dist
+app.use(express.static(clientDist));
+
 app.use(bodyParser.json());
 
 // Initialize DB
@@ -70,5 +75,10 @@ app.post('/api/admin/add', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 4000;
+// SPA fallback: return index.html for any path the client handles
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'));
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Server listening on', PORT));
