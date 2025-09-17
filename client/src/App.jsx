@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useRef} from 'react'
 import WikipediaRenderer from './WikipediaRenderer'
 import confetti from 'canvas-confetti'
 import logo from './logo.png'
@@ -24,6 +24,40 @@ function StepsGraph({ stats, highlightStep }) {
     highlightIndex = highlightStep >= 11 ? 10 : highlightStep - 1
   }
 
+  // Calculate scaling
+  const maxCount = Math.max(...bars.map(b => b.count))
+  const maxBarHeight = 100
+  let getBarHeight = (count) => {
+    if (maxCount >= 7) {
+      // Scale all bars so the tallest is maxBarHeight
+      return (count / maxCount) * maxBarHeight
+    } else {
+      // Use fixed height per player, capped
+      return Math.min(maxBarHeight, 20 * count)
+    }
+  }
+  
+  // Animation: refs for each bar
+  const barRefs = useRef([])
+
+  useEffect(() => {
+    // Reset all bar heights to 0 first
+    barRefs.current.forEach(el => {
+      if (el) el.style.height = '0px'
+    })
+    // Animate to final height after a short delay
+    const timeout = setTimeout(() => {
+      bars.forEach((bar, idx) => {
+        const el = barRefs.current[idx]
+        if (el) {
+          el.style.height = getBarHeight(bar.count) + 'px'
+        }
+      })
+    }, 50) // 50ms is enough for the browser to register the change
+
+    return () => clearTimeout(timeout)
+  }, [stats, highlightStep])
+
   return (
     <div>
       <div style={{fontWeight:400,fontSize:15,color:'#6b7280',marginBottom:8}}>
@@ -36,9 +70,10 @@ function StepsGraph({ stats, highlightStep }) {
               {count > 0 && <div className="bar-count">{count}</div>}
               <div
                 className="bar"
+                ref={el => barRefs.current[idx] = el}
                 style={{
-                  height: Math.min(200, 20*count)+'px',
-                  background: idx === highlightIndex ? '#b6f5c9' : undefined // pastel green
+                  height: 0, // initial height
+                  background: idx === highlightIndex ? '#b6f5c9' : undefined
                 }}
               ></div>
             </div>
@@ -95,24 +130,38 @@ export default function App() {
     setPhase('play')
   }
 
+  function isSimilar(a, b) {
+    if (!a || !b) return false
+    const norm = s => s.toLowerCase().replace(/_/g, ' ').trim()
+    return norm(a) === norm(b) ||
+      norm(a).includes(norm(b)) ||
+      norm(b).includes(norm(a))
+  }
+
   const onLinkClick = (title) => {
-    setFade(true) // start fade-out
-    setTimeout(() => {
+    if (isSimilar(title, todayPair.end)) {
+      // Winning: skip fade animation
       setSteps(s => s + 1)
-      if (title === todayPair.end) {
-        setCurrentPageTitle(title)
-        fetch(`${SERVER}/api/result`, {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ date: todayPair.date, steps: steps + 1, surrendered: false })
+      fetch(`${SERVER}/api/result`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ date: todayPair.date, steps: steps + 1, surrendered: false })
+      })
+        .then(() => fetch(`${SERVER}/api/stats?date=${todayPair.date}`))
+        .then(r => r.json())
+        .then(newStats => {
+          setStats(newStats)
+          setPhase('results')
         })
-          .then(() => fetch(`${SERVER}/api/stats?date=${todayPair.date}`).then(r => r.json()).then(setStats))
-          .catch(() => { })
-        setPhase('results')
-      } else {
+        .catch(() => setPhase('results'))
+    } else {
+      // Only fade when navigating to a new Wiki page
+      setFade(true)
+      setTimeout(() => {
+        setSteps(s => s + 1)
         setCurrentPageTitle(title)
-      }
-      setFade(false) // fade-in new page
-    }, 150) // fade duration
+        setFade(false)
+      }, 150)
+    }
   }
 
   const surrender = () => {
@@ -122,9 +171,13 @@ export default function App() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ date: todayPair.date, steps: 11, surrendered: true })
     })
-      .then(() => fetch(`${SERVER}/api/stats?date=${todayPair.date}`).then(r => r.json()).then(setStats))
-      .catch(() => { })
-    setPhase('results')
+      .then(() => fetch(`${SERVER}/api/stats?date=${todayPair.date}`))
+      .then(r => r.json())
+      .then(newStats => {
+        setStats(newStats)
+        setPhase('results')
+      })
+      .catch(() => setPhase('results'))
   }
 
   const percentileText = useMemo(() => {
@@ -201,20 +254,28 @@ export default function App() {
                     Wiki SpeedRun
                   </a>
               </p>
-              {percentileText && <p className="percentile">{percentileText}</p>}
             </>
           )}
           <div className="graph" style={{marginTop: 24}}>
             <h4>Tu puntuación</h4>
             <StepsGraph stats={stats} highlightStep={surrendered ? 11 : steps} />
           </div>
-          <div className="share">
-            <a href={`https://api.whatsapp.com/send?text=He jugado+ConectaWiki+(${todayPair.start.replace(/_/g,' ')}→${todayPair.end.replace(/_/g,' ')})+y+he+hecho+${steps}+pasos`} target="_blank">WhatsApp</a>
+          <div style={{ width: '100%', margin: '24px 0 16px 0', textAlign: 'left', fontWeight: 500, fontSize: 16 }}>
+            Comparte tus resultados
+          </div>
+          <div className="share" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', marginBottom: 16 }}>
+            <a
+              href={`https://api.whatsapp.com/send?text=He Jugado a WikiLinks conectando (${todayPair.start.replace(/_/g,' ')}→${todayPair.end.replace(/_/g,' ')}) y he hecho ${steps} pasos. Si quieres intentar superarme, puedes jugar gratis en https://twiki6.vercel.app`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              WhatsApp
+            </a>
             <a href={`https://www.facebook.com/sharer/sharer.php?u=https://tu-dominio.com`} target="_blank">Facebook</a>
             <a href={`https://www.tiktok.com/`} target="_blank">TikTok</a>
             <a href={`https://www.instagram.com/`} target="_blank">Instagram</a>
           </div>
-          <button className="btn" onClick={() => { setPhase('front'); setSteps(0); }}>Volver</button>
+          {/*<button className="btn" onClick={() => { setPhase('front'); setSteps(0); }}>Volver</button>*/}
         </main>
       )}
       {/* Celebrate overlay */}
@@ -233,7 +294,11 @@ export default function App() {
         </div>
       )}
 
-      <footer className="footer">Juego con enlaces de Wikipedia en español</footer>
+      <footer className="footer">v.0.6 Creado por Alejandro G. Gener. Codigo disponible en&nbsp;
+        <a href="https://github.com/alejandroggener/twiki6" target="_blank" rel="noopener noreferrer">
+          Github
+        </a>  
+      </footer>
     </div>
   )
 }
