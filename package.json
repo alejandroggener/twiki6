@@ -5,7 +5,7 @@
   "scripts": {
     "install-all": "npm --prefix server install && npm --prefix client install",
     "install:server": "npm --prefix server ci",
-    "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev -- --host\"",
     "seed": "node server/seed.js",
     "build:client": "npm --prefix client ci && npm --prefix client run build",
     "build": "npm run build:client",

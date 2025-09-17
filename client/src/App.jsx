@@ -99,6 +99,7 @@ export default function App() {
   const [surrendered, setSurrendered] = useState(false)
   const [stats, setStats] = useState(null)
   const [fade, setFade] = useState(false)
+  const [showInstructions, setShowInstructions] = useState(false)
 
   // Fetch today pair and stats
   useEffect(() => {
@@ -198,7 +199,51 @@ export default function App() {
 
       {/* Front page */}
       {phase === 'front' && todayPair && (
-        <main className="card">
+        <main className="card" style={{ position: 'relative' }}>
+          
+          {/* How to play button */}
+          <button
+            className="btn info"
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              zIndex: 2
+            }}
+            onClick={() => setShowInstructions(v => !v)}
+          >
+            {showInstructions ? 'Cerrar instrucciones' : '¿Cómo jugar?'}
+          </button>
+          {/* Instructions card */}
+          {showInstructions && (
+            <div
+              className="instructions-card"
+              style={{
+                position: 'absolute',
+                top: 64,
+                right: 16,
+                background: '#f9fafb',
+                borderRadius: 8,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                padding: '20px 24px',
+                maxWidth: 320,
+                textAlign: 'left',
+                fontSize: 16,
+                fontWeight: 400,
+                color: '#374151',
+                zIndex: 3
+              }}
+            >
+              <h3 style={{marginTop:0}}>¿Cómo jugar?</h3>
+              La teoria de los 6 grados de Wikipedia dice que bastan 6 links para connectar dos conceptos aleatorios entre sí. ¿Te atreves a intentarlo?
+              <ol style={{paddingLeft:20, fontSize:14, color:'#6b7280'}}>
+                <li>Solo puedes avanzar haciendo clic en los enlaces azules de Wikipedia.</li>
+                <li>Tu objetivo es llegar a la página final en el menor número de pasos posible.</li>
+                <li>Puedes rendirte si te quedas atascado.</li>
+                <li>¡Comparte tu resultado y desafía a tus amigos!</li>
+              </ol>
+            </div>
+          )}
           <h2>Conecta:</h2>
           <div className="pair">
             <div className="concept">{todayPair.start.replace(/_/g, ' ')}</div>
@@ -222,10 +267,11 @@ export default function App() {
         <main className="game">
           <div className="topbar">
             <div><strong>Objetivo: </strong>{todayPair.end.replace(/_/g, ' ')}</div>
-            <div>Pasos: {steps}</div>
-            <button className="btn small" onClick={surrender}>Rendirse</button>
+            <div className="topbar-row">
+              <div><strong>Clicks: </strong>{steps}</div>
+              <button className="btn small" onClick={surrender}>Rendirse</button>
+            </div>
           </div>
-
           <div className={`wiki-window ${fade ? 'fade' : ''}`}>
             <WikipediaRenderer title={currentPageTitle} onLinkClick={onLinkClick} />
           </div>
@@ -257,18 +303,29 @@ export default function App() {
             </>
           )}
           <div className="graph" style={{marginTop: 24}}>
-            <h4>Tu puntuación</h4>
+            <h4>Tu puntuación:&nbsp;
+              <span style={{ fontSize: '15px', color: '#6b7280', fontWeight: 400 }}>
+                {surrendered ? 'No acabado' : `${steps} clicks`}
+              </span>
+            </h4>
             <StepsGraph stats={stats} highlightStep={surrendered ? 11 : steps} />
           </div>
           <div style={{ width: '100%', margin: '24px 0 16px 0', textAlign: 'left', fontWeight: 500, fontSize: 16 }}>
             Comparte tus resultados
           </div>
           <div className="share" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', marginBottom: 16 }}>
-            <a
-              href={`https://api.whatsapp.com/send?text=He Jugado a WikiLinks conectando (${todayPair.start.replace(/_/g,' ')}→${todayPair.end.replace(/_/g,' ')}) y he hecho ${steps} pasos. Si quieres intentar superarme, puedes jugar gratis en https://twiki6.vercel.app`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+<a
+  href={`https://api.whatsapp.com/send?text=
+🚀 ¡He jugado a WikiLinks! 🚀%0A%0A
+Conecté%0A
+${todayPair.start.replace(/_/g,' ')} ➡️ ${todayPair.end.replace(/_/g,' ')}%0A%0A
+${surrendered ? '😅 No lo terminé esta vez...' : `🎯 ¡En solo ${steps} clicks! 🎯`}%0A%0A
+¿Te atreves a superarme? Juega gratis aquí:%0A
+https://wikilinks.onrender.com/
+`}
+  target="_blank"
+  rel="noopener noreferrer"
+>
               WhatsApp
             </a>
             <a href={`https://www.facebook.com/sharer/sharer.php?u=https://tu-dominio.com`} target="_blank">Facebook</a>

@@ -28,11 +28,6 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Arial,Helvetica;backgrou
 .share a{display:inline-block;margin-right:8px}
 .footer{margin-top:20px;color:var(--muted)}
 
-/* Responsive */
-@media (max-width:600px){
-  .card{padding:12px}
-  .wiki-window{min-height:60vh}
-}
 
 .bar {
   transition: height 0.8s cubic-bezier(.68,-0.55,.27,1.55);
@@ -227,8 +222,51 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Arial,Helvetica;backgrou
   width: 28px;
 }
 
+.topbar {
+  position: sticky;
+  top: 59px;
+  background: #fff;
+  z-index: 10;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius:12px;
+}
+
 /* Small devices */
-@media (max-width: 600px){
+/* Responsive */
+@media (max-width:600px){
+  .bars { gap: 3px; }
+  .bar-item { width: 18px; }
   .wiki-window { min-height: 50vh; padding: 8px; }
   .pair { flex-direction: column; gap: 6px; font-size: 16px; }
+  .card{padding:12px}
+  .graph { margin-top: 8px; }
+  .instructions-card { max-width: 95vw; right: 8px !important; top: 64px !important; }
+  .arrow {
+    transform: rotate(90deg);
+    margin: 4px 0;
+    font-size: 20px;
+  }
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1px; /* reduced gap */
+    padding: 10px 8px;
+  }
+  .topbar > div:first-child {
+    font-size: 16px;
+    margin-bottom: 2px; /* reduced margin */
+  }
+  .topbar-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn.small {
+    margin-top: 0; /* remove extra margin */
+  }
 }
