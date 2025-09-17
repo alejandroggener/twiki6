@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import WikipediaRenderer from './WikipediaRenderer'
 import confetti from 'canvas-confetti'
+import logo from './logo.png'
 
 const SERVER = import.meta.env.VITE_SERVER || 'http://localhost:4000'
 
@@ -87,7 +88,9 @@ export default function App() {
 
   return (
     <div className="page">
-      <header className="header">TWiki6</header>
+      <header className="header">
+        <img src={logo} alt="Logo" style={{height:40, verticalAlign:'middle', marginRight:8}} />
+      </header>
 
       {/* Front page */}
       {phase === 'front' && todayPair && (

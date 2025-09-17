@@ -11,7 +11,7 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Arial,Helvetica;backgrou
 .header{font-weight:700;font-size:20px;margin:12px}
 .card{background:var(--card);border-radius:var(--radius);padding:18px;max-width:760px;width:100%;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
 .pair{display:flex;align-items:center;justify-content:center;gap:12px;font-size:18px;margin:12px 0}
-.concept{background:linear-gradient(180deg,var(--accent),#e9f7ff);padding:10px 14px;border-radius:10px}
+.concept{background:#e9f7ff;padding:10px 14px;border-radius:10px}
 .btn{background:#111;color:white;padding:10px 14px;border-radius:10px;border:none;margin-top:12px;cursor:pointer}
 .btn.small{padding:6px 10px;font-size:14px}
 .graph{margin-top:12px}
