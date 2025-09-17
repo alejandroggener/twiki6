@@ -3,7 +3,7 @@ import WikipediaRenderer from './WikipediaRenderer'
 import confetti from 'canvas-confetti'
 import logo from './logo.png'
 
-const SERVER = import.meta.env.VITE_SERVER || 'http://localhost:10000'
+const SERVER = import.meta.env.VITE_SERVER ?? ''
 
 function StepsGraph({ stats, highlightStep }) {
   // Always show steps 1-10 and "+11"
