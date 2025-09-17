@@ -5,6 +5,57 @@ import logo from './logo.png'
 
 const SERVER = import.meta.env.VITE_SERVER || 'http://localhost:4000'
 
+function StepsGraph({ stats, highlightStep }) {
+  // Always show steps 1-10 and "+11"
+  const dist = stats?.distribution || {}
+  const bars = []
+  for (let i = 1; i <= 10; i++) {
+    bars.push({ label: i, count: dist[i] || 0 })
+  }
+  // "+11" bar
+  const plus11 = Object.entries(dist)
+    .filter(([k]) => parseInt(k,10) >= 11)
+    .reduce((sum, [,v]) => sum+v, 0)
+  bars.push({ label: '+11', count: plus11 })
+
+  // Determine which bar to highlight
+  let highlightIndex = null
+  if (highlightStep !== undefined && highlightStep !== null) {
+    highlightIndex = highlightStep >= 11 ? 10 : highlightStep - 1
+  }
+
+  return (
+    <div>
+      <div style={{fontWeight:400,fontSize:15,color:'#6b7280',marginBottom:8}}>
+        Total jugadores: {Object.values(dist).reduce((a,b)=>a+b,0)}
+      </div>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
+        <div className="bars" style={{marginBottom: '8px'}}>
+          {bars.map(({label,count}, idx) => (
+            <div key={label} className="bar-item">
+              {count > 0 && <div className="bar-count">{count}</div>}
+              <div
+                className="bar"
+                style={{
+                  height: Math.min(200, 20*count)+'px',
+                  background: idx === highlightIndex ? '#b6f5c9' : undefined // pastel green
+                }}
+              ></div>
+            </div>
+          ))}
+        </div>
+        <div className="bars" style={{marginTop: '0'}}>
+          {bars.map(({label}) => (
+            <div key={label} className="bar-item">
+              <div className="bar-label">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [todayPair, setTodayPair] = useState(null)
   const [phase, setPhase] = useState('front') // front, play, results
@@ -103,28 +154,13 @@ export default function App() {
           </div>
 
           <div className="graph">
-            <h4>Distribución de pasos (histórico hoy)</h4>
-            <div className="bars">
-                {stats && Object.keys(stats.distribution || {}).length > 0 
-                ? Object.entries(stats.distribution).sort((a,b)=>a[0]-b[0]).map(([k,v])=>(
-                    <div key={k} className="bar-item">
-                        <div className="bar-label">{k}</div>
-                        <div className="bar" style={{height: Math.min(200, 20*v)+'px'}}></div>
-                        <div className="bar-count">{v}</div>
-                    </div>
-                    ))
-                : Array.from({length:5}).map((_,i)=>(
-                    <div key={i} className="bar-item">
-                        <div className="bar-label">–</div>
-                        <div className="bar" style={{height:0}}></div>
-                        <div className="bar-count">0</div>
-                    </div>
-                    ))
-                }
-            </div>
+            <h4>Datos de hoy</h4>
+            <StepsGraph stats={stats} />
           </div>
 
-          <button className="btn" onClick={startGame}>Empezar</button>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+            <button className="btn" onClick={startGame}>Empezar</button>
+          </div>
         </main>
       )}
 
@@ -149,15 +185,29 @@ export default function App() {
           {surrendered ? (
             <>
               <h2>Te rendiste</h2>
-              <p>No te preocupes, hoy era bastante complicado. Otros X jugadores han abandonado</p>
+              <p>No te preocupes, hoy era bastante complicado. Prueba suerte mañana</p>
+              <p>Puedes practicar tantas veces como quieras en&nbsp;
+                  <a href="https://wikispeedrun.org/" target="_blank" rel="noopener noreferrer">
+                    Wiki SpeedRun
+                  </a>
+              </p>
             </>
           ) : (
             <>
               <h2>¡Felicidades!</h2>
               <p>Has llegado en {steps} pasos.</p>
+              <p>Si te has quedado con ganas de más, puedes seguir jugando en&nbsp;
+                <a href="https://wikispeedrun.org/" target="_blank" rel="noopener noreferrer">
+                    Wiki SpeedRun
+                  </a>
+              </p>
               {percentileText && <p className="percentile">{percentileText}</p>}
             </>
           )}
+          <div className="graph" style={{marginTop: 24}}>
+            <h4>Tu puntuación</h4>
+            <StepsGraph stats={stats} highlightStep={surrendered ? 11 : steps} />
+          </div>
           <div className="share">
             <a href={`https://api.whatsapp.com/send?text=He jugado+ConectaWiki+(${todayPair.start.replace(/_/g,' ')}→${todayPair.end.replace(/_/g,' ')})+y+he+hecho+${steps}+pasos`} target="_blank">WhatsApp</a>
             <a href={`https://www.facebook.com/sharer/sharer.php?u=https://tu-dominio.com`} target="_blank">Facebook</a>

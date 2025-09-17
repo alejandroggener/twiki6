@@ -44,11 +44,14 @@ app.get('/api/stats', (req, res) => {
   db.all('SELECT steps, surrendered FROM results WHERE date = ?', [date], (err, rows) => {
     if(err) return res.status(500).json({error: err.message});
     if(!rows) rows = [];
-    // Build distribution map of steps (exclude surrendered from ranking)
+    // Build distribution map of steps (include surrendered in +11 bin)
     const distribution = {};
     const stepsArray = [];
     rows.forEach(r => {
-      if(!r.surrendered) {
+      if (r.surrendered) {
+        // Always count surrendered in +11
+        distribution[11] = (distribution[11]||0)+1;
+      } else {
         distribution[r.steps] = (distribution[r.steps]||0)+1;
         stepsArray.push(r.steps);
       }
