@@ -3,9 +3,80 @@ const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const path = require('path');
+const cron = require('node-cron')
+const fetch = require('node-fetch')
 
 const DB_PATH = path.join(__dirname, 'data.db');
 const db = new sqlite3.Database(DB_PATH);
+
+// Helper to get two random Spanish Wikipedia titles
+async function getRandomWikiPair() {
+  const url = 'https://es.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=2&format=json'
+  const res = await fetch(url)
+  const data = await res.json()
+  const pages = data.query?.random || []
+  if (pages.length < 2) return ['España', 'Leonardo_da_Vinci']
+  // Wikipedia titles may contain spaces, use underscores for consistency
+  return pages.map(p => p.title.replace(/ /g, '_'))
+}
+
+// Schedule daily pair update at 00:00 GMT
+cron.schedule('0 0 * * *', async () => {
+  try {
+    const [start, end] = await getRandomWikiPair()
+    const today = (new Date()).toISOString().slice(0,10)
+    db.run('INSERT OR REPLACE INTO daily (date, start, end) VALUES (?,?,?)', [today, start, end], function(err){
+      if(err) console.error('Error updating daily pair:', err)
+      else console.log('Daily pair updated:', start, '→', end)
+    })
+  } catch (e) {
+    console.error('Error fetching random Wikipedia pair:', e)
+  }
+}, {
+  timezone: 'Etc/GMT'
+})
+
+// Create daily_stats table for summaries
+db.run(`CREATE TABLE IF NOT EXISTS daily_stats (
+  date TEXT PRIMARY KEY,
+  step_counts TEXT,   -- JSON string: { "1": 5, "2": 10, ... }
+  surrendered INTEGER
+)`)
+
+// Helper to summarize and clean up yesterday's results
+async function summarizeAndCleanupResults() {
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10)
+  db.all('SELECT steps, surrendered FROM results WHERE date = ?', [yesterday], (err, rows) => {
+    if (err) return console.error('Error reading results:', err)
+    if (!rows || rows.length === 0) return
+
+    // Aggregate step counts and surrendered
+    const stepCounts = {}
+    let surrendered = 0
+    rows.forEach(r => {
+      if (r.surrendered) surrendered++
+      else stepCounts[r.steps] = (stepCounts[r.steps]||0) + 1
+    })
+
+    // Save summary
+    db.run('INSERT OR REPLACE INTO daily_stats (date, step_counts, surrendered) VALUES (?,?,?)',
+      [yesterday, JSON.stringify(stepCounts), surrendered],
+      function(err){
+        if (err) console.error('Error saving daily_stats:', err)
+        else {
+          // Delete detailed results for yesterday
+          db.run('DELETE FROM results WHERE date = ?', [yesterday], function(err){
+            if (err) console.error('Error deleting old results:', err)
+            else console.log('Summarized and cleaned up results for', yesterday)
+          })
+        }
+      }
+    )
+  })
+}
+
+// Schedule summary and cleanup at 00:05 GMT every day
+cron.schedule('5 0 * * *', summarizeAndCleanupResults, { timezone: 'Etc/GMT' })
 
 const app = express();
 app.use(cors());

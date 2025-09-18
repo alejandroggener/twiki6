@@ -18,6 +18,7 @@
     "concurrently": "^8.2.0"
   },
   "dependencies": {
-    "canvas-confetti": "^1.9.3"
+    "canvas-confetti": "^1.9.3",
+    "node-cron": "^4.2.1"
   }
 }
