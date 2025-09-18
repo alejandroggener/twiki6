@@ -4,7 +4,7 @@ const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const path = require('path');
 const cron = require('node-cron')
-const fetch = require('node-fetch')
+const fetch = (...args) => import('node-fetch').then(mod => mod.default(...args));
 
 const DB_PATH = path.join(__dirname, 'data.db');
 const db = new sqlite3.Database(DB_PATH);
@@ -16,7 +16,6 @@ async function getRandomWikiPair() {
   const data = await res.json()
   const pages = data.query?.random || []
   if (pages.length < 2) return ['España', 'Leonardo_da_Vinci']
-  // Wikipedia titles may contain spaces, use underscores for consistency
   return pages.map(p => p.title.replace(/ /g, '_'))
 }
 
