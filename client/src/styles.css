@@ -179,18 +179,38 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Arial,Helvetica;backgrou
 }
 
 /* Responsive topbar */
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Topbar as 2x2 grid:
+   back | surrender
+   objective | clicks */
 .topbar {
   position: sticky;
   top: 59px; /* height of header */
   background: #fff;
-  z-index: 10;
+  z-index: 30;
   padding: 12px 16px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   border-radius:12px;
+
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "back surrender"
+    "objective clicks";
+  gap: 6px 12px;
+  align-items: center;
 }
+
+.top-left {grid-area: objective; }
+.top-right {  grid-area: clicks; justify-self: end;  }
+.bottom-left {  grid-area: back; }
+.bottom-right {grid-area: surrender; justify-self: end;}
+
 
 .header {
   position: sticky;
@@ -221,24 +241,101 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Arial,Helvetica;backgrou
   align-items: center;
   width: 28px;
 }
+/* Thin divider between bars and X labels */
+.labels-row {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 6px;
+  margin-top: 2px !important; /* keep it tight under the line */
+}
 
-.topbar {
-  position: sticky;
-  top: 59px;
-  background: #fff;
-  z-index: 10;
-  padding: 12px 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+/* X-axis legend */
+.x-axis-legend {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* Hint modal */
+.hint-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-radius:12px;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.hint-modal {
+  width: min(900px, 95vw);
+  max-height: 80vh;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.hint-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.hint-title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.hint-close {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.hint-close:hover {
+  background: #f3f4f6;
+}
+
+.hint-body {
+  padding: 12px;
+  overflow: auto;
+}
+
+/* Make objective look clickable in the top bar */
+.objective-button {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+/* Make the end concept on the front page clickable */
+.concept--clickable {
+  cursor: pointer;
+}
+
+.concept--clickable:hover {
+  filter: brightness(0.98);
 }
 
 /* Small devices */
 /* Responsive */
 @media (max-width:600px){
-  .bars { gap: 3px; }
+    .bars { gap: 3px; }
   .bar-item { width: 18px; }
   .wiki-window { min-height: 50vh; padding: 8px; }
   .pair { flex-direction: column; gap: 6px; font-size: 16px; }
@@ -250,23 +347,20 @@ body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Arial,Helvetica;backgrou
     margin: 4px 0;
     font-size: 20px;
   }
+
+  /* Keep 2x2 grid on mobile with tighter spacing */
   .topbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1px; /* reduced gap */
     padding: 10px 8px;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "back surrender"
+      "objective clicks";
+    gap: 4px 8px;
   }
-  .topbar > div:first-child {
-    font-size: 16px;
-    margin-bottom: 2px; /* reduced margin */
-  }
-  .topbar-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
+
   .btn.small {
-    margin-top: 0; /* remove extra margin */
+    margin-top: 0;
   }
+  .hint-modal { max-height: 85vh; width: 95vw; }
+  .hint-body { padding: 8px; }
 }

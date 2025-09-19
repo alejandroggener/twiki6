@@ -3,19 +3,32 @@ import WikipediaRenderer from './WikipediaRenderer'
 import confetti from 'canvas-confetti'
 import logo from './logo.png'
 
-const SERVER = import.meta.env.VITE_SERVER ?? ''
+const SERVER = import.meta.env.VITE_SERVER ?? 'http://192.168.1.139:3000'
 
 function StepsGraph({ stats, highlightStep }) {
   // Always show steps 1-10 and "+11"
   const dist = stats?.distribution || {}
+
+  // Total players (includes surrendered)
+  const totalPlayers = (typeof stats?.total === 'number')
+    ? stats.total
+    : Object.values(dist).reduce((a,b)=>a+b,0)
+
+  // Surrendered count (total - finished), fallback 0 if missing
+  const surrenderedCount = (typeof stats?.total === 'number' && typeof stats?.finished === 'number')
+    ? Math.max(0, stats.total - stats.finished)
+    : 0
+
   const bars = []
   for (let i = 1; i <= 10; i++) {
     bars.push({ label: i, count: dist[i] || 0 })
   }
-  // "+11" bar
-  const plus11 = Object.entries(dist)
+
+  // "+11" bar: all >=11 minus surrendered
+  const plus11Raw = Object.entries(dist)
     .filter(([k]) => parseInt(k,10) >= 11)
     .reduce((sum, [,v]) => sum+v, 0)
+  const plus11 = Math.max(0, plus11Raw - surrenderedCount)
   bars.push({ label: '+11', count: plus11 })
 
   // Determine which bar to highlight
@@ -27,41 +40,29 @@ function StepsGraph({ stats, highlightStep }) {
   // Calculate scaling
   const maxCount = Math.max(...bars.map(b => b.count))
   const maxBarHeight = 100
-  let getBarHeight = (count) => {
-    if (maxCount >= 7) {
-      // Scale all bars so the tallest is maxBarHeight
-      return (count / maxCount) * maxBarHeight
-    } else {
-      // Use fixed height per player, capped
-      return Math.min(maxBarHeight, 20 * count)
-    }
+  const getBarHeight = (count) => {
+    if (maxCount >= 7) return (count / maxCount) * maxBarHeight
+    return Math.min(maxBarHeight, 20 * count)
   }
-  
+
   // Animation: refs for each bar
   const barRefs = useRef([])
 
   useEffect(() => {
-    // Reset all bar heights to 0 first
-    barRefs.current.forEach(el => {
-      if (el) el.style.height = '0px'
-    })
-    // Animate to final height after a short delay
+    barRefs.current.forEach(el => { if (el) el.style.height = '0px' })
     const timeout = setTimeout(() => {
       bars.forEach((bar, idx) => {
         const el = barRefs.current[idx]
-        if (el) {
-          el.style.height = getBarHeight(bar.count) + 'px'
-        }
+        if (el) el.style.height = getBarHeight(bar.count) + 'px'
       })
-    }, 50) // 50ms is enough for the browser to register the change
-
+    }, 50)
     return () => clearTimeout(timeout)
   }, [stats, highlightStep])
 
   return (
     <div>
       <div style={{fontWeight:400,fontSize:15,color:'#6b7280',marginBottom:8}}>
-        Total jugadores: {Object.values(dist).reduce((a,b)=>a+b,0)}
+        Total jugadores: {totalPlayers}
       </div>
       <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
         <div className="bars" style={{marginBottom: '8px'}}>
@@ -72,20 +73,23 @@ function StepsGraph({ stats, highlightStep }) {
                 className="bar"
                 ref={el => barRefs.current[idx] = el}
                 style={{
-                  height: 0, // initial height
+                  height: 0,
                   background: idx === highlightIndex ? '#b6f5c9' : undefined
                 }}
-              ></div>
+              />
             </div>
           ))}
         </div>
-        <div className="bars" style={{marginTop: '0'}}>
+        {/* Horizontal divider and labels */}
+        <div className="bars labels-row" style={{marginTop: '0'}}>
           {bars.map(({label}) => (
             <div key={label} className="bar-item">
               <div className="bar-label">{label}</div>
             </div>
           ))}
         </div>
+        {/* X axis legend */}
+        <div className="x-axis-legend">number of clicks</div>
       </div>
     </div>
   )
@@ -100,6 +104,9 @@ export default function App() {
   const [stats, setStats] = useState(null)
   const [fade, setFade] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
+  const [hintOpen, setHintOpen] = useState(false)
+  const [history, setHistory] = useState([])
+  const [infoOpen, setInfoOpen] = useState(false)
 
   // Fetch today pair and stats
   useEffect(() => {
@@ -127,8 +134,21 @@ export default function App() {
     if (!todayPair) return
     setSteps(0)
     setSurrendered(false)
+    setHistory([])
     setCurrentPageTitle(todayPair.start)
     setPhase('play')
+  }
+
+  const openHint = () => setHintOpen(true)
+  const closeHint = () => setHintOpen(false)
+
+  const goBack = () => {
+    setHistory(h => {
+      if (h.length === 0) return h
+      const prev = h[h.length - 1]
+      setCurrentPageTitle(prev)
+      return h.slice(0, -1)
+    })
   }
 
   function isSimilar(a, b) {
@@ -159,6 +179,7 @@ export default function App() {
       setFade(true)
       setTimeout(() => {
         setSteps(s => s + 1)
+        setHistory(h => [...h, currentPageTitle])
         setCurrentPageTitle(title)
         setFade(false)
       }, 150)
@@ -235,20 +256,29 @@ export default function App() {
               }}
             >
               <h3 style={{marginTop:0}}>¿Cómo jugar?</h3>
-              La teoria de los 6 grados de Wikipedia dice que bastan 6 links para connectar dos conceptos aleatorios entre sí. ¿Te atreves a intentarlo?
+              La teoria de los 6 grados de Wikipedia dice que bastan 6 links para conectar dos conceptos aleatorios entre sí. ¿Te atreves a intentarlo?
               <ol style={{paddingLeft:20, fontSize:14, color:'#6b7280'}}>
                 <li>Solo puedes avanzar haciendo clic en los enlaces azules de Wikipedia.</li>
                 <li>Tu objetivo es llegar a la página final en el menor número de pasos posible.</li>
                 <li>Puedes rendirte si te quedas atascado.</li>
+                <li>Puedes volver atrás, pero los pasos se mantienen</li>
                 <li>¡Comparte tu resultado y desafía a tus amigos!</li>
               </ol>
+              Consejo: Pulsa el nombre del objetivo en cualquier momento para ver su definicion
             </div>
           )}
           <h2>Conecta:</h2>
           <div className="pair">
             <div className="concept">{todayPair.start.replace(/_/g, ' ')}</div>
             <div className="arrow">→</div>
-            <div className="concept">{todayPair.end.replace(/_/g, ' ')}</div>
+            {/* Make the objective concept clickable to open hint */}
+            <div
+              className="concept concept--clickable"
+              onClick={openHint}
+              title="Ver pista (contenido de la página objetivo)"
+            >
+              {todayPair.end.replace(/_/g, ' ')}
+            </div>
           </div>
 
           <div className="graph">
@@ -266,10 +296,34 @@ export default function App() {
       {phase === 'play' && currentPageTitle && (
         <main className="game">
           <div className="topbar">
-            <div><strong>Objetivo: </strong>{todayPair.end.replace(/_/g, ' ')}</div>
-            <div className="topbar-row">
-              <div><strong>Clicks: </strong>{steps}</div>
+            {/* Top-left: Atrás */}
+            <div className="top-left">
+              <button
+                className="btn small"
+                onClick={goBack}
+                disabled={history.length === 0}
+                title={history.length === 0 ? 'No hay página anterior' : 'Volver a la página anterior'}
+              >
+                Atrás
+              </button>
+            </div>
+
+            {/* Top-right: Rendirse */}
+            <div className="top-right">
               <button className="btn small" onClick={surrender}>Rendirse</button>
+            </div>
+
+            {/* Bottom-left: Objetivo (abre pista) */}
+            <div className="bottom-left">
+              <strong>Objetivo: </strong>
+              <button className="objective-button" onClick={openHint} title="Ver pista">
+                {todayPair.end.replace(/_/g, ' ')}
+              </button>
+            </div>
+
+            {/* Bottom-right: Clicks */}
+            <div className="bottom-right">
+              <strong>Clicks: </strong>{steps}
             </div>
           </div>
           <div className={`wiki-window ${fade ? 'fade' : ''}`}>
@@ -295,20 +349,31 @@ export default function App() {
             <>
               <h2>¡Felicidades!</h2>
               <p>Has llegado en {steps} pasos.</p>
-              <p>Si te has quedado con ganas de más, puedes seguir jugando en&nbsp;
+              {steps <= 6 ? (
+              <p>
+                Si te has quedado con ganas de más, puedes seguir jugando en&nbsp; ¿Lograrás menos pasos mañana?
                 <a href="https://wikispeedrun.org/" target="_blank" rel="noopener noreferrer">
-                    Wiki SpeedRun
-                  </a>
+                  Wiki SpeedRun
+                </a>
               </p>
+            ) : (
+              <p>
+                ¿Podrás llegar mañana en 6 pasos o menos?, puedes seguir jugando en&nbsp;
+                <a href="https://wikispeedrun.org/" target="_blank" rel="noopener noreferrer">
+                  Wiki SpeedRun
+                </a>
+              </p>
+            )}
             </>
           )}
+
           <div className="graph" style={{marginTop: 24}}>
             <h4>Tu puntuación:&nbsp;
               <span style={{ fontSize: '15px', color: '#6b7280', fontWeight: 400 }}>
                 {surrendered ? 'No acabado' : `${steps} clicks`}
               </span>
             </h4>
-            <StepsGraph stats={stats} highlightStep={surrendered ? 11 : steps} />
+            <StepsGraph stats={stats} highlightStep={surrendered ? null : steps} />
           </div>
           <div style={{ width: '100%', margin: '24px 0 16px 0', textAlign: 'left', fontWeight: 500, fontSize: 16 }}>
             Comparte tus resultados
@@ -332,7 +397,12 @@ https://wikilinks.onrender.com/
             <a href={`https://www.tiktok.com/`} target="_blank">TikTok</a>
             <a href={`https://www.instagram.com/`} target="_blank">Instagram</a>
           </div>
-          {/*<button className="btn" onClick={() => { setPhase('front'); setSteps(0); }}>Volver</button>*/}
+          {/* NEW: place "Más información" right after share links with lighter style */}
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 0' }}>
+            <button className="btn light small" onClick={() => setInfoOpen(true)}>
+              Más información
+            </button>
+          </div>
         </main>
       )}
       {/* Celebrate overlay */}
@@ -351,7 +421,51 @@ https://wikilinks.onrender.com/
         </div>
       )}
 
-      <footer className="footer">v.0.6 Creado por Alejandro G. Gener. Codigo disponible en&nbsp;
+      {/* Hint modal (shows the objective Wikipedia page). Close via X only. */}
+      {hintOpen && todayPair && (
+        <div className="hint-overlay" role="dialog" aria-modal="true" aria-label="Pista: página objetivo">
+          <div className="hint-modal">
+            <div className="hint-header">
+              <div className="hint-title">{todayPair.end.replace(/_/g, ' ')}</div>
+              <button className="hint-close" onClick={closeHint} aria-label="Cerrar">×</button>
+            </div>
+            <div className="hint-body">
+              {/* Disable navigation in hint to avoid affecting the run */}
+              <WikipediaRenderer title={todayPair.end} onLinkClick={() => {}} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Más información modal (reuses hint modal styles) */}
+      {infoOpen && (
+        <div className="hint-overlay" role="dialog" aria-modal="true" aria-label="Más información">
+          <div className="hint-modal">
+            <div className="hint-header">
+              <div className="hint-title">Más información</div>
+              <button className="hint-close" onClick={() => setInfoOpen(false)} aria-label="Cerrar">×</button>
+            </div>
+            <div className="hint-body">
+              <p>¡Muchas gracias por jugar a mi juego! Esto empezó como un proyecto pequeño de un fin de semana y me hace mucha ilusión ver que la gente lo disfruta.</p>
+              <p>Mi intención es que siempre sea GRATIS y libre de publicidad. Si veo que aumenta su popularidad, tengo pensadas varias mejoras:</p>
+              <ul>
+                <li>Mostrar posibles soluciones al final de la partida. Efectivamente, siempre hay al menos 6 clicks entre conceptos.</li>
+                <li>Versión en inglés para ser más internacional.</li>
+                <li>Dominio privado www.WikiLinks.com</li>
+              </ul>
+              <p>
+                Para contribuir o cualquier pregunta:&nbsp;
+                <a href="https://github.com/alejandroggener/twiki6" target="_blank" rel="noopener noreferrer">GitHub</a>
+                &nbsp;·&nbsp;
+                <a href="mailto:alejandro.ggener@gmail.com?subject=WikiLinks%20-%20Contacto">Escríbeme por email</a>
+                {/* Reemplaza TU_EMAIL_AQUI por tu email real, p.ej. alejandro@example.com */}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer className="footer">v.1.0 Creado por Alejandro G. Gener. Codigo disponible en&nbsp;
         <a href="https://github.com/alejandroggener/twiki6" target="_blank" rel="noopener noreferrer">
           Github
         </a>  
