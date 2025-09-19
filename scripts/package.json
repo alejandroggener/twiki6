@@ -1,0 +1,13 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "description": "Background scripts for WikiLinks",
+  "main": "seed.js",
+  "scripts": {
+    "daily-update": "node seed.js"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.6",
+    "node-fetch": "^3.3.2"
+  }
+}
