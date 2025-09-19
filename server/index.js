@@ -17,9 +17,6 @@ db.run(`CREATE TABLE IF NOT EXISTS daily_stats (
 )`)
 
 
-// Schedule summary and cleanup at 00:05 GMT every day
-cron.schedule('5 0 * * *', summarizeAndCleanupResults, { timezone: 'Etc/GMT' })
-
 const app = express();
 app.use(cors());
 
